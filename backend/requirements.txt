@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+redis
+sentence-transformers
+torch
+requests
+pydantic
+websockets
+aiohttp
+loguru
+httpx

@@ -1,0 +1,27 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install shared dependencies
+COPY app/agents/shared/requirements.txt /app/requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
+
+# Install loguru
+RUN pip install loguru
+
+# Copy base agent
+COPY app/agents/base_agent.py /app/
+
+# Copy agent-specific code
+ARG AGENT_NAME
+COPY app/agents/${AGENT_NAME}/${AGENT_NAME}_agent.py /app/
+
+# Copy shared entrypoint
+COPY app/agents/shared/entrypoint.sh /app/
+RUN chmod +x /app/entrypoint.sh
+
+# Expose WebSocket port
+EXPOSE 8000
+
+# Command to run agent
+CMD ["sh", "entrypoint.sh"]

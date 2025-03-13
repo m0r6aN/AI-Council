@@ -1,0 +1,91 @@
+services:
+  redis:
+      image: redis:7-alpine
+      container_name: redis
+      ports:
+        - "6379:6379"
+      networks:
+        - shared_network
+  websocket-server:
+    build:
+      context: ./websocket_streaming
+      dockerfile: Dockerfile
+    container_name: websocket-server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./app/logs:/app/logs
+    networks:
+      - shared_network
+
+  grok-agent:
+      build:
+        context: .
+        dockerfile: app/agents/shared/Dockerfile.agent
+        args:
+          - AGENT_NAME=grok
+      container_name: grok_agent
+      environment:
+        - GROK_API_KEY=${GROK_API_KEY}
+        - AGENT_NAME=grok
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - WS_URI=ws://websocket-server:8000/ws/moderation
+      volumes:
+        - ./app/logs:/app/logs
+      networks:
+        - shared_network
+      depends_on:
+        - redis
+        - websocket-server
+
+  claude-agent:
+      build:
+        context: .
+        dockerfile: app/agents/shared/Dockerfile.agent
+        args:
+          - AGENT_NAME=claude
+      container_name: manus-killswitch-claude
+      restart: unless-stopped
+      env_file:
+        - ./.env
+      environment:
+        - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+        - AGENT_NAME=claude
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - MODEL=claude-3-7-sonnet-20250219
+        - WS_URI=ws://websocket-server:8000/ws/moderation
+      volumes:
+        - ./app/logs:/app/logs
+        - ./config.json:/app/config.json
+      networks:
+        - shared_network
+      depends_on:
+        - redis
+        - websocket-server
+
+  gpt-agent:
+      build:
+        context: .
+        dockerfile: app/agents/shared/Dockerfile.agent
+        args:
+          - AGENT_NAME=gpt
+      container_name: gpt-agent
+      environment:
+        - GPT_API_KEY=${GPT_API_KEY}
+        - AGENT_NAME=gpt
+        - REDIS_HOST=redis
+        - REDIS_PORT=6379
+        - WS_URI=ws://websocket-server:8000/ws/moderation
+      volumes:
+        - ./app/logs:/app/logs
+      networks:
+        - shared_network
+      depends_on:
+        - redis
+        - websocket-server
+
+networks:
+  shared_network:
+    driver: bridge
